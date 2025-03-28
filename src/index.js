@@ -1,67 +1,83 @@
-function fetchCharacters() {
-    fetch("http://localhost:3000/characters")
-      .then((response) => response.json())
-      .then((characters) => {
-        const characterBar = document.getElementById("character-bar");
+document.addEventListener("DOMContentLoaded", () => {
+  const characterBar = document.getElementById("character-bar");
+  const characterName = document.getElementById("name");
+  const characterImage = document.getElementById("image");
+  const voteDisplay = document.getElementById("vote-count");
+  const voteInput = document.getElementById("votes");
+  const addVotesBtn = document.querySelector('input[value="Add Votes"]');
+  const resetVotesBtn = document.getElementById("reset-btn");
   
-        characters.forEach((character) => {
-          const characterSpan = document.createElement("span");
-          characterSpan.textContent = character.name;
-          characterSpan.addEventListener("click", () => displayCharacterDetails(character));
+  let characters = [];
+  let currentCharacter = null;
   
-          characterBar.appendChild(characterSpan);
-        });
-      })
-      .catch((error) => {
-        console.error("Error fetching characters:", error);
-      });
-    }
+  fetch("http://localhost:3000/characters")
+  .then(response => response.json())
+  .then(data => {
+    characters = data;
+    displayCharacters(data); 
+  })
+  .catch(error => console.error("Error fetching characters:", error));
 
-    function displayCharacterDetails(character) {
-        console.log(character);
-      }
-    
-      function displayCharacterDetails(characterId) {
+  function displayCharacters(data) {
+    characterBar.innerHTML = ""; 
+    data.forEach(character => {
+      let btn = document.createElement("button");
+      btn.textContent = character.name;
+
+   
+      let img = document.createElement("img");
+      img.src = character.image;
+      img.alt = character.name; 
+      img.width = 50; 
+      img.height = 50; 
+
+      let container = document.createElement("div");
+      container.appendChild(img);
+      container.appendChild(btn);
       
-        fetch(`http://localhost:3000/characters/${characterId}`)
-          .then((response) => response.json())
-          .then((character) => {
+      container.addEventListener("click", () => updateCharacterInfo(character));
+
+      characterBar.appendChild(container);
+    });
     
-            currentCharacter = character;
-            document.getElementById("name").textContent = character.name;
-            document.getElementById("image").src = character.image;
-            document.getElementById("image").alt = character.name;
-            document.getElementById("vote-count").textContent = character.votes;
+    if (data.length > 0) {
+      updateCharacterInfo(data[0]);
+    }
+  }
+
+  function updateCharacterInfo(character) {
+    currentCharacter = character;
+    characterName.textContent = character.name;
+    characterImage.src = character.image;
+    voteDisplay.textContent = character.votes;
+  }
+  
+  addVotesBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    let votesToAdd = parseInt(voteInput.value) || 0;
+    if (votesToAdd > 0 && currentCharacter) {
+      currentCharacter.votes += votesToAdd;
+      voteDisplay.textContent = currentCharacter.votes;
+   
+      fetch(`http://localhost:3000/characters/${currentCharacter.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ votes: currentCharacter.votes })
+      }).catch(error => console.error("Error updating votes:", error));
+    }
+    voteInput.value = "";
+  });
+  
+  resetVotesBtn.addEventListener("click", () => {
+    if (currentCharacter) {
+      currentCharacter.votes = 0;
+      voteDisplay.textContent = 0;
     
-    
-            const voteForm = document.getElementById("votes-form");
-            voteForm.addEventListener("submit", (event) => {
-              event.preventDefault();
-              const votesInput = document.getElementById("votes");
-              const votesToAdd = parseInt(votesInput.value, 10);
-      
-              if (isNaN(votesToAdd) || votesToAdd <= 0) {
-                alert("Please enter a valid number of votes.");
-                return;
-              }
-      
-              currentCharacter.votes += votesToAdd;
-      
-              document.getElementById("vote-count").textContent = currentCharacter.votes;
-      
-              votesInput.value = "";
-            });
-    
-          })
-          .catch((error) => {
-            console.error("Error fetching character details:", error);
-          });
-      }
-    
-    
-    
-    
-    
-      document.addEventListener("DOMContentLoaded", () => {
-        fetchCharacters();
-      });
+      fetch(`http://localhost:3000/characters/${currentCharacter.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ votes: 0 })
+      }).catch(error => console.error("Error resetting votes:", error));
+    }
+  });
+});
